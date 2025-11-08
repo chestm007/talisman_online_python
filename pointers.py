@@ -120,8 +120,11 @@ class Pointers:
     def get_char_name(self) -> str:
         name = self.read_string_from_pointer(self.CHAR_NAME_POINTER, offset=0xBC, max_length=50)
 
-        if re.match(r"^[\w]+$", name):  # Alfanumérico | Alphanumeric
-            return name
+        try:
+            if re.match(r"^[\w]+$", name):  # Alfanumérico | Alphanumeric
+                return name
+        except TypeError:
+            pass
 
         # Segunda tentativa
         pointer = self.get_pointer(self.CLIENT + 0x00D450EC, offsets=[0xBC])
@@ -129,16 +132,31 @@ class Pointers:
             name = self.read_string_from_pointer(pointer, offset=0x0, max_length=50)
         return name
 
-    def get_target_name(self) -> str:
+    def get_target_name(self) -> str | None:
+        """
+        Returns the target name if it conforms to a "valid" name.
+        This function is a bit flakey, as some of these pointers return "valid" names that are fucking garbage.
+        """
+        def is_valid_name(_in_name: str):
+            """returns True if `_in_name` is alphanumeric and ascii."""
+            return val and val.isascii() and all(map(str.isalnum, val.split(' ')))
+        if not self.is_target_selected():
+            return None
         val = self.read_string_from_pointer(self.TARGET_NAME_POINTER_3, offset=0x0, max_length=50)
-        if not val:
-            val = self.read_string_from_pointer(self.TARGET_NAME_POINTER, offset=0x9AC, max_length=50)
-        return val
+        if is_valid_name(val):
+            return val
+        val = self.read_string_from_pointer(self.TARGET_NAME_POINTER, offset=0x9AC, max_length=50)
+        if is_valid_name(val):
+            return val
+        val = self.read_string_from_pointer(self.TARGET_NAME_POINTER_2, offset=0x0, max_length=50)
+        if is_valid_name(val):
+            return val
+        return None
 
     def team_name_1(self) -> str:
         name = self.read_string_from_pointer(self.TEAM_NAME_1, offset=0x4F4, max_length=50)
 
-        if re.match(r"^[\w]+$", name):  # Alfanumérico
+        if re.match(r"^[\w]+$", name):  # Alphanimeric
             return name
         pointer = self.get_pointer(0x012CE2E0, offsets=[0x18, 0x77C, 0x0, 0xC, 0x678, 0x8B4, 0x4F4])
         if pointer:
