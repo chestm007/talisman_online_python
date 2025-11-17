@@ -117,19 +117,18 @@ class Pointers:
             pass
         return None
 
-    def get_char_name(self) -> str:
+    def  get_char_name(self) -> str:
         name = self.read_string_from_pointer(self.CHAR_NAME_POINTER, offset=0xBC, max_length=50)
 
-        try:
-            if re.match(r"^[\w]+$", name):  # Alfanumérico | Alphanumeric
-                return name
-        except TypeError:
-            pass
-
-        # Segunda tentativa
-        pointer = self.get_pointer(self.CLIENT + 0x00D450EC, offsets=[0xBC])
-        if pointer:
-            name = self.read_string_from_pointer(pointer, offset=0x0, max_length=50)
+        if (name is None
+            or name.isnumeric()
+            or len(name) < 5
+            or ' ' in name
+        ):  # occasionally the first pointer will return garbage... this filter might need to be smarter
+            # alternate pointer for name
+            pointer = self.get_pointer(self.CLIENT + 0x00D450EC, offsets=[0xBC])
+            if pointer:
+                name = self.read_string_from_pointer(pointer, offset=0x0, max_length=50)
         return name
 
     def get_target_name(self) -> str | None:
