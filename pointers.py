@@ -1,5 +1,7 @@
 import math
 import re
+from typing import cast, overload, LiteralString, Literal
+
 import pymem
 
 
@@ -12,6 +14,7 @@ class Pointers:
         self.DC_POINTER = 0x012CE35C
         self.CHAR_NAME_POINTER = 0x011450EC
         self.LEVEL_POINTER = self.get_pointer(self.CLIENT + 0x00D450EC, offsets=[0x3C4])
+        self.ENERGY_POINTER = self.get_pointer(self.CLIENT + 0x00D450EC, offsets=[0x3cc])
         self.HP_POINTER = self.get_pointer(self.CLIENT + 0x00D450EC, offsets=[0x3B8])
         self.HP_PLUS_POINTER = self.get_pointer(self.CLIENT + 0x00D450EC, offsets=[0xE4])
         self.HP_BUFF_POINTER = self.get_pointer(self.CLIENT + 0x00D450EC, offsets=[0xE0])
@@ -43,6 +46,7 @@ class Pointers:
         self.BAG_OPEN_POINTER = self.get_pointer(0x012CE2E0, offsets=[0x18, 0x5C4, 0x0, 0xC, 0x1F8, 0x42C, 0xBA0])
         self.BAG_1 = self.get_pointer(0x011450EC, offsets=[0x838, 0xC4, 0x0, 0x8, 0x10])
         self.BAG_2 = self.get_pointer(0x011450EC, offsets=[0x838, 0xC4, 0x4, 0x8, 0x10])
+        # self.BAG_3 = self.get_pointer(0x011450EC, offsets=[0x838, 0xC4, 0x8, 0x8, 0x10])
         self.MOUNT_STATUS_POINTER = self.get_pointer(self.CLIENT + 0x00D450EC, offsets=[0x8B0])
         self.BUFFS_QUANTITY_POINTER = self.get_pointer(self.CLIENT + 0x00C20980, offsets=[0xCBC])
 
@@ -89,14 +93,21 @@ class Pointers:
             #print(f"Erro ao calcular o ponteiro: {e}")
             return None
 
-    def read_value(self, address, data_type="byte") -> int | float| None:
+    @overload
+    def read_value(self, address, data_type: Literal["int"]) -> int | None: ...
+    @overload
+    def read_value(self, address, data_type: Literal["byte"]) -> int | None: ...
+    @overload
+    def read_value(self, address, data_type: Literal["float"]) -> float | None: ...
+
+    def read_value(self, address, data_type: Literal["int", "byte", "float"] = "byte"):
         try:
             if data_type == "byte":
-                return self.pm.read_bytes(address, 1)[0]  # Lê 1 byte
+                return self.pm.read_bytes(address, 1)[0]  # 1 byte
             elif data_type == "int":
-                return self.pm.read_int(address)  # Lê 4 bytes como inteiro
+                return self.pm.read_int(address)  # 4 bytes integer
             elif data_type == "float":
-                return self.pm.read_float(address)  # Lê 4 bytes como float
+                return self.pm.read_float(address)  # 4 bytes float
             else:
                 print(f"Tipo de dado desconhecido: {data_type}")
                 return None
@@ -117,7 +128,7 @@ class Pointers:
             pass
         return None
 
-    def  get_char_name(self) -> str:
+    def get_char_name(self) -> str | None:
         name = self.read_string_from_pointer(self.CHAR_NAME_POINTER, offset=0xBC, max_length=50)
 
         if (name is None
@@ -136,7 +147,7 @@ class Pointers:
         Returns the target name if it conforms to a "valid" name.
         This function is a bit flakey, as some of these pointers return "valid" names that are fucking garbage.
         """
-        def is_valid_name(_in_name: str):
+        def is_valid_name(_in_name: str | None):
             """returns True if `_in_name` is alphanumeric and ascii."""
             return val and val.isascii() and all(map(str.isalnum, val.split(' ')))
         if not self.is_target_selected():
@@ -152,7 +163,7 @@ class Pointers:
             return val
         return None
 
-    def team_name_1(self) -> str:
+    def team_name_1(self) -> str | None:
         name = self.read_string_from_pointer(self.TEAM_NAME_1, offset=0x4F4, max_length=50)
 
         if re.match(r"^[\w]+$", name):  # Alphanimeric
@@ -162,7 +173,7 @@ class Pointers:
             name = self.read_string_from_pointer(pointer, offset=0x0, max_length=50)
         return name
 
-    def team_name_2(self) -> str:
+    def team_name_2(self) -> str | None:
         name = self.read_string_from_pointer(self.TEAM_NAME_2, offset=0x4F4, max_length=50)
         if re.match(r"^[\w]+$", name):
             return name
@@ -171,7 +182,7 @@ class Pointers:
             name = self.read_string_from_pointer(pointer, offset=0x0, max_length=50)
         return name
 
-    def team_name_3(self) -> str:
+    def team_name_3(self) -> str | None:
         name = self.read_string_from_pointer(self.TEAM_NAME_3, offset=0x54, max_length=50)
         if re.match(r"^[\w]+$", name):
             return name
@@ -180,7 +191,7 @@ class Pointers:
             name = self.read_string_from_pointer(pointer, offset=0x0, max_length=50)
         return name
 
-    def team_name_4(self) -> str:
+    def team_name_4(self) -> str | None:
         name = self.read_string_from_pointer(self.TEAM_NAME_4, offset=0x54, max_length=50)
         if re.match(r"^[\w]+$", name):
             return name
@@ -189,46 +200,45 @@ class Pointers:
             name = self.read_string_from_pointer(pointer, offset=0x0, max_length=50)
         return name
 
-    def get_level(self) -> int:
+    def get_level(self) -> int | None:
         return self.read_value(self.LEVEL_POINTER, data_type="byte")
+
+    def get_energy(self) -> int | None:
+        return self.read_value(self.ENERGY_POINTER, data_type="int")
 
     def is_target_selected(self) -> bool:
         if self.TARGET_SELECT is None:
             print("Erro: Ponteiro TARGET_SELECT não calculado.")
             return False
 
-        target = self.read_value(self.TARGET_SELECT, data_type="byte")  # Lê 1 byte
-        return target == 1
+        return self.read_value(self.TARGET_SELECT, data_type="byte")  == 1
 
-    def target_hp(self) -> int:
-        hp = self.read_value(self.TARGET_HP_POINTER, data_type="int")
-        return hp
+    def target_hp(self) -> int | None:
+        return self.read_value(self.TARGET_HP_POINTER, data_type="int")
 
     def pet_active(self) -> bool:
-        hp = self.pm.read_bool(self.PET_ACTIVE_POINTER)
-        return hp
+        return self.pm.read_bool(self.PET_ACTIVE_POINTER)
 
     def target_hp_full(self) -> bool:
-        return self.read_value(self.TARGET_HP_POINTER, data_type="int") == 597
+        return self.target_hp() == 597
 
     def is_target_dead(self) -> bool:
-        dead = self.read_value(self.TARGET_HP_POINTER, data_type="int")
-        return dead == 0
+        return self.target_hp() == 0
 
-    def get_hp(self) -> int:
+    def get_hp(self) -> int | None:
         return self.read_value(self.HP_POINTER, data_type="int")
 
-    def get_hp_plus(self) -> int:
+    def get_hp_plus(self) -> int | None:
         plus = self.read_value(self.HP_PLUS_POINTER, data_type="byte")
         if plus >= 100:
             return plus - 100
         else:
             return plus
 
-    def get_hp_buff(self) -> int:
+    def get_hp_buff(self) -> int | None:
         return self.read_value(self.HP_BUFF_POINTER, data_type="int")
 
-    def get_max_hp(self) -> int:
+    def get_max_hp(self) -> int | None:
         base_hp = self.read_value(self.MAX_HP_POINTER, data_type="int")
         buff_hp = self.get_hp_buff()
         hp_total = base_hp + buff_hp
@@ -239,30 +249,24 @@ class Pointers:
         else:
             return math.floor(((hp_total * plus) / 100) + hp_total)
 
-    def get_mana(self) -> int:
+    def get_mana(self) -> int | None:
         return self.read_value(self.MANA_POINTER, data_type="int")
 
-    def get_mana_buff(self) -> int:
+    def get_mana_buff(self) -> int | None:
         return self.read_value(self.MANA_BUFF_POINTER, data_type="int")
 
-    def get_max_mana(self) -> int:
+    def get_max_mana(self) -> int | None:
         base_mana = self.read_value(self.MAX_MANA_POINTER, data_type="int")
         buff_mana = self.get_mana_buff()
-        mana_total = base_mana + buff_mana
+        if buff_mana:
+            mana_total = base_mana + buff_mana
         return mana_total
 
     def is_in_battle(self) -> bool:
-        battle = self.read_value(self.BATTLE_STATUS_POINTER, data_type="byte")
-        if battle == 1:
-            #print("Battle Status")
-            return True
-        return False
+        return self.read_value(self.BATTLE_STATUS_POINTER, data_type="byte") == 1
 
     def is_sitting(self) -> bool:
-        sitting = self.read_value(self.SIT_POINTER, data_type="byte")
-        if sitting == 200:
-            return True
-        return False
+        return self.read_value(self.SIT_POINTER, data_type="byte") == 200
 
     def get_x(self) -> int:
         x = self.read_value(self.X_POINTER, data_type="float") / 20
@@ -273,27 +277,22 @@ class Pointers:
         return y > 0 and math.floor(y) or math.ceil(y)
 
     def is_bag_open(self) -> bool:
-        bag = self.read_value(self.BAG_OPEN_POINTER, data_type="int")
-        if bag == 903:
-            return True
-        return False
+        return self.read_value(self.BAG_OPEN_POINTER, data_type="int") == 903
 
     def get_team_size(self) -> int:
-        team = self.read_value(self.TEAM_SIZE_POINTER, data_type="int")
-        return team or 0
+        return self.read_value(self.TEAM_SIZE_POINTER, data_type="int") or 0
 
-    def get_dc(self) -> int:
-        dc = self.read_value(self.DC_POINTER, data_type="int")
-        return dc
+    def get_dc(self) -> int | None:
+        return self.read_value(self.DC_POINTER, data_type="int")
 
-    def get_gold(self) -> int:
+    def get_gold(self) -> int | None:
         """returns a string as: f'{gold}{silver}{copper}'"""
         return self.read_value(self.GOLD_POINTER, data_type="int")
 
-    def bag_1_quantity(self) -> int:
+    def bag_1_quantity(self) -> int | None:
         return self.read_value(self.BAG_1, data_type="int")
 
-    def bag_2_quantity(self) -> int:
+    def bag_2_quantity(self) -> int | None:
         return self.read_value(self.BAG_2, data_type="int")
 
     def mount(self) -> bool:
@@ -314,12 +313,9 @@ class Pointers:
             return None  # Retorna None se houver qualquer erro na conversão
 
     def get_id(self):
-        id = self.read_value(self.TARGET_ID, data_type="int")
-        # print(f"ID: {id}")
-        return id
+        return  self.read_value(self.TARGET_ID, data_type="int")
 
-
-    def search_id(self):
+    def search_value(self, base, value) -> tuple[int, int, int | float] | tuple[None, None, None]:
         final_pointer = 0
         max_attempts = 1  # Número máximo de tentativas completas
         erro_count = 0  # Contador para limitar mensagens de erro
@@ -327,7 +323,35 @@ class Pointers:
         for attempt in range(max_attempts):
             try:
                 # Obtém o ID do alvo
-                targetid = self.get_target_id()
+                found = False
+                erro_count = 0  # Reinicia contador de erros para cada nova tentativa
+
+                # Busca crescente (do base atual até BASE_MAX)
+                current_base = base
+                for i in range(1000000):
+                    offset = i*0x04
+                    p = self.get_pointer(base, [offset])
+                    v = self.read_value(p, data_type="int")
+                    if v == value:
+                        print('offset: ', hex(offset))
+                        return p
+                continue
+
+            except Exception as e:
+                print(f"Erro durante a busca: {e}. Reiniciando...")
+
+        # Se chegou aqui, todas as tentativas falharam
+        print("Falha em todas as tentativas de busca. Reiniciando o processo...")
+
+    def search_id(self, id_ = None) -> tuple[int, int, int | float] | tuple[None, None, None]:
+        final_pointer = 0
+        max_attempts = 1  # Número máximo de tentativas completas
+        erro_count = 0  # Contador para limitar mensagens de erro
+
+        for attempt in range(max_attempts):
+            try:
+                # Obtém o ID do alvo
+                targetid = id_ or self.get_target_id()
                 if targetid is None:
                     print("Reiniciando busca: ID do alvo não encontrado")
                     continue  # Passa para a próxima tentativa
@@ -449,7 +473,7 @@ class Pointers:
         loot = self.read_value(self.LOOT_POINTER, data_type="int")
         return loot
 
-    def write_position(self, pointer, x, y):
+    def write_position(self, pointer, x, y) -> None:
         try:
             basex = pointer + 0x810
             basey = pointer + 0x814
@@ -464,7 +488,7 @@ class Pointers:
             print(f"Erro ao definir posição: {e}")
             return False
 
-    def write_camera(self, z, r, a):
+    def write_camera(self, z, r, a) -> None:
         zoom = self.ZOOM_POINTER
         rotation = self.ROTATION_POINTER
         angle = self.ANGLE_POINTER
@@ -472,7 +496,7 @@ class Pointers:
         self.pm.write_float(rotation, float(r))
         self.pm.write_float(angle, float(a))
 
-    def loot_window(self):
+    def loot_window(self) -> int | bool:
         l = self.read_value(self.LOOT_WINDOW, data_type="int")
 
         if l is None:
@@ -483,9 +507,8 @@ class Pointers:
         else:
             return False
 
-    def get_sur_info(self):
+    def get_sur_info(self) -> dict[str, str] | None:
         info = self.read_string_from_pointer(self.FIRST_LINK_SUR, offset=0x64, max_length=100)
-        print(info)
 
         # Extrai o nome e as coordenadas usando expressões regulares
         name_match = re.search(r'text="([^"]+)\s*\[(-?\d+),(-?\d+)\]"', info)
@@ -501,14 +524,14 @@ class Pointers:
                 'coords': f'{x_coord},{y_coord}'
             }
 
-    def confirm_box(self):
+    def confirm_box(self) -> bool:
         confirm = self.read_value(self.CONFIRM_BOX_POINTER, data_type="int")
         if confirm == 1:
             return True
         else:
             return False
 
-    def get_location(self):
+    def get_location(self) -> str | None:
 
         location = self.read_string_from_pointer(self.LOCATION_POINTER, offset=0x44C, max_length=100)
         if location and re.match(r"^[\w ']+$", location):
@@ -522,14 +545,14 @@ class Pointers:
                 #print(f"Char location (2): {second_pointer}")
                 return second_pointer
 
-    def get_location_2(self):
+    def get_location_2(self) -> str | None:
 
         location_2 = self.read_string_from_pointer(self.LOCATION_POINTER_2, offset=0x0, max_length=100)
 
         return location_2
 
 
-    def get_notification(self):
+    def get_notification(self) -> bool:
         pointer = self.read_value(self.NOTIFICATION_POINTER, data_type="int")
         if pointer >= 1:
             print(f"Notification: {pointer}")
@@ -537,22 +560,22 @@ class Pointers:
         else:
             return False
 
-    def get_dialog(self):
+    def get_dialog(self) -> bool:
         dialog = self.read_value(self.DIALOG_POINTER, data_type="int")
         if dialog == 16775:
             return True
         else:
             return False
 
-    def get_sin_combo(self):
+    def get_sin_combo(self) -> int | None:
         passive = self.read_value(self.SIN_PASSIVE, data_type="int")
         return passive
 
-    def get_monk_combo(self):
+    def get_monk_combo(self) -> int | None:
         passive = self.read_value(self.MONK_PASSIVE, data_type="int")
         return passive
 
-    def get_system_menu(self):
+    def get_system_menu(self) -> bool:
         system = self.read_value(self.SYSTEM_MENU_POINTER, data_type="int")
         if system == 1610612736:
             return True
@@ -570,50 +593,29 @@ def main():
     else:
         print("No target selected")
 
-    name = p.get_char_name()
-    print(f"CHAR_NAME: {name}")
-    level = p.get_level()
-    print(f"LEVEL: {level}")
-    team_name_1 = p.team_name_1()
-    print(f"TEAM_NAME_1: {team_name_1}")
-    team_name_2 = p.team_name_2()
-    print(f"TEAM_NAME_2: {team_name_2}")
-    team_name_3 = p.team_name_3()
-    print(f"TEAM_NAME_3: {team_name_3}")
-    team_name_4 = p.team_name_4()
-    print(f"TEAM_NAME_4: {team_name_4}")
-    hp = p.target_hp()
-    print(f"TARGET_HP: {hp}")
-    target_name = p.get_target_name()
-    print(f"TARGET_NAME: {target_name}")
-    get_hp = p.get_hp()
-    print(f"CHAR_HP : {get_hp}")
-    hp_plus = p.get_hp_plus()
-    print(f"CHAR_HP_PLUS : {hp_plus}")
-    hp_buff = p.get_hp_buff()
-    print(f"CHAR_HP_BUFF : {hp_buff}")
-    max_hp = p.get_max_hp()
-    print(f"CHAR_MAX_HP : {max_hp}")
-    battle = p.is_in_battle()
-    print(f"CHAR_BATTLE_STATUS : {battle}")
-    mana = p.get_mana()
-    print(f"CHAR_MANA : {mana}")
-    mana_buff = p.get_mana_buff()
-    print(f"CHAR_MANA_BUFF : {mana_buff}")
-    max_mana = p.get_max_mana()
-    print(f"CHAR_MAX_MANA : {max_mana}")
-    sit = p.is_sitting()
-    print(f"CHAR_SIT : {sit}")
-    x_pos = p.get_x()
-    print(f"CHAR_X_POS : {x_pos}")
-    y_pos = p.get_y()
-    print(f"CHAR_Y_POS : {y_pos}")
-    bag_open = p.is_bag_open()
-    print(f"CHAR_BAG_OPEN : {bag_open}")
-    team_size = p.get_team_size()
-    print(f"TEAM_SIZE : {team_size}")
-    dc = p.get_dc()
-    print(f"CHAR_DC : {dc}")
+    print(f"CHAR_NAME: {p.get_char_name()}")
+    print(f"LEVEL: {p.get_level()}")
+    print(f"ENERGY: {p.get_energy()}")
+    print(f"TEAM_NAME_1: {p.team_name_1()}")
+    print(f"TEAM_NAME_2: {p.team_name_2()}")
+    print(f"TEAM_NAME_3: {p.team_name_3()}")
+    print(f"TEAM_NAME_4: {p.team_name_4()}")
+    print(f"TARGET_HP: {p.target_hp()}")
+    print(f"TARGET_NAME: {p.get_target_name()}")
+    print(f"CHAR_HP : {p.get_hp()}")
+    print(f"CHAR_HP_PLUS : {p.get_hp_plus()}")
+    print(f"CHAR_HP_BUFF : {p.get_hp_buff()}")
+    print(f"CHAR_MAX_HP : {p.get_max_hp()}")
+    print(f"CHAR_BATTLE_STATUS : {p.is_in_battle()}")
+    print(f"CHAR_MANA : {p.get_mana()}")
+    print(f"CHAR_MANA_BUFF : {p.get_mana_buff()}")
+    print(f"CHAR_MAX_MANA : {p.get_max_mana()}")
+    print(f"CHAR_SIT : {p.is_sitting()}")
+    print(f"CHAR_X_POS : {p.get_x()}")
+    print(f"CHAR_Y_POS : {p.get_y()}")
+    print(f"CHAR_BAG_OPEN : {p.is_bag_open()}")
+    print(f"TEAM_SIZE : {p.get_team_size()}")
+    print(f"CHAR_DC : {p.get_dc()}")
     print(f"GET_LOCATION : {p.get_location()}")
     print(f"CHAR_LOCATION_2 : {p.get_location_2()}")
     print(f"GET_SURR_INFO : {p.get_sur_info()}")
@@ -627,10 +629,10 @@ def main():
     print(f"BAG1 : {p.bag_1_quantity()}")
     print(f"BAG2 : {p.bag_2_quantity()}")
     print(f"mounted : {p.mount()}")
-    t_ptr = p.search_id()
-    print(f"search_id : {t_ptr}")
-    #p.write_camera(10000, 0, 50)
-    print(f"is_loot : {p.is_loot()}")
+    # t_ptr = p.search_id()
+    # print(f"search_id : {t_ptr}")
+    # #p.write_camera(10000, 0, 50)
+    # print(f"is_loot : {p.is_loot()}")
 
 if __name__ == "__main__":
     main()
