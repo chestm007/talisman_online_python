@@ -258,8 +258,7 @@ class Pointers:
     def get_max_mana(self) -> int | None:
         base_mana = self.read_value(self.MAX_MANA_POINTER, data_type="int")
         buff_mana = self.get_mana_buff()
-        if buff_mana:
-            mana_total = base_mana + buff_mana
+        mana_total = base_mana + buff_mana
         return mana_total
 
     def is_in_battle(self) -> bool:
